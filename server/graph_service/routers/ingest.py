@@ -6,7 +6,7 @@ from fastapi import APIRouter, FastAPI, status
 from graphiti_core.nodes import EpisodeType  # type: ignore
 from graphiti_core.utils.maintenance.graph_data_operations import clear_data  # type: ignore
 
-from graph_service.dto import AddEntityNodeRequest, AddMessagesRequest, Message, Result
+from graph_service.dto import AddEntityNodeRequest, AddMessagesRequest, AddTextRequest, Message, Result
 from graph_service.zep_graphiti import ZepGraphitiDep
 
 
@@ -68,6 +68,27 @@ async def add_messages(
         await async_worker.queue.put(partial(add_messages_task, m))
 
     return Result(message='Messages added to processing queue', success=True)
+
+
+@router.post('/text', status_code=status.HTTP_202_ACCEPTED)
+async def add_text(
+    request: AddTextRequest,
+    graphiti: ZepGraphitiDep,
+):
+    async def add_text_task():
+        await graphiti.add_episode(
+            uuid=request.uuid,
+            group_id=request.group_id,
+            name=request.name,
+            episode_body=request.content,
+            reference_time=request.reference_time,
+            source=EpisodeType.text,
+            source_description=request.source_description,
+        )
+
+    await async_worker.queue.put(add_text_task)
+
+    return Result(message='Text added to processing queue', success=True)
 
 
 @router.post('/entity-node', status_code=status.HTTP_201_CREATED)
